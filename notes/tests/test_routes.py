@@ -1,26 +1,11 @@
 from http import HTTPStatus
 
-from django.contrib.auth import get_user_model
-from django.test import TestCase
 from django.urls import reverse
 
-from notes.models import Note
-
-User = get_user_model()
+from notes.tests.conftest import BaseTest
 
 
-class TestRoutes(TestCase):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create(username='Автор')
-        cls.not_author = User.objects.create(username='Не автор')
-        cls.note = Note.objects.create(
-            title='Заголовок',
-            text='Текст заметки',
-            slug='slug',
-            author=cls.author,
-        )
+class TestRoutes(BaseTest):
 
     def test_home_availability_for_anonymous_user(self):
         """Тест доступности страниц для анонимного пользователя."""
@@ -69,20 +54,17 @@ class TestRoutes(TestCase):
     def test_redirects(self):
         """Тестирование редиректов."""
         urls = (
-            ('notes:detail', self.note),
-            ('notes:edit', self.note),
-            ('notes:delete', self.note),
+            ('notes:detail', (self.note.slug,)),
+            ('notes:edit', (self.note.slug,)),
+            ('notes:delete', (self.note.slug,)),
             ('notes:add', None),
             ('notes:success', None),
             ('notes:list', None),
         )
         login_url = reverse('users:login')
-        for name, note_object in urls:
+        for name, args in urls:
             with self.subTest(name=name):
-                if note_object is not None:
-                    url = reverse(name, args=(note_object.slug,))
-                else:
-                    url = reverse(name)
+                url = reverse(name, args=args)
                 expected_url = f'{login_url}?next={url}'
                 response = self.client.get(url)
                 self.assertRedirects(response, expected_url)

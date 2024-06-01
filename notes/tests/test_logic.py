@@ -1,30 +1,18 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
 from django.urls import reverse
 
-from notes.forms import NoteForm, WARNING
+from notes.forms import WARNING
 from notes.models import Note
+from notes.tests.conftest import BaseTestLogicWithNote, BaseTestLogic
 
 from pytils.translit import slugify  # type: ignore
 
 User = get_user_model()
 
 
-class TestLogicCreate(TestCase):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create(username='Автор')
-        cls.auth_client = Client()
-        cls.auth_client.force_login(cls.author)
-        cls.form_data = {
-            'title': 'Новый заголовок',
-            'text': 'Новый текст',
-            'slug': 'new-slug'
-        }
-        cls.add_url = reverse('notes:add')
+class TestLogicCreate(BaseTestLogic):
 
     def test_user_can_create_note(self):
         """Тест, что залогиненный пользователь может создать заметку."""
@@ -62,35 +50,14 @@ class TestLogicCreate(TestCase):
         self.assertEqual(new_note.slug, expected_slug)
 
 
-class TestLogicCreateDelete(TestCase):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create(username='Автор')
-        cls.not_author = User.objects.create(username='Не автор')
-        cls.auth_client = Client()
-        cls.auth_client.force_login(cls.author)
-        cls.not_auth_client = Client()
-        cls.not_auth_client.force_login(cls.not_author)
-        cls.note = Note.objects.create(
-            title='Заголовок',
-            text='Текст заметки',
-            slug='slug',
-            author=cls.author,
-        )
-        cls.form_data = {
-            'title': 'Новый заголовок',
-            'text': 'Новый текст',
-            'slug': 'new-slug'
-        }
-        cls.edit_url = reverse('notes:edit', args=(cls.note.slug,))
-        cls.delete_url = reverse('notes:delete', args=(cls.note.slug,))
+class TestLogicCreateDelete(BaseTestLogicWithNote):
 
     def test_not_unique_slug(self):
         """Тест, что нельзя создать 2 заметки с одинаковым slug."""
-        url = reverse('notes:add')
         self.form_data['slug'] = self.note.slug
-        response = self.auth_client.post(url, data=self.form_data)
+        response = self.auth_client.post(
+            reverse('notes:add'), data=self.form_data
+        )
         self.assertFormError(
             response, 'form', 'slug', errors=(self.note.slug + WARNING)
         )
